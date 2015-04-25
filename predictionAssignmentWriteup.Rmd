@@ -1,0 +1,130 @@
+---
+title: "Model Selection & Cross Validation of Fitness Sensor Data"
+author: "Steffin J Spears"
+date: "April 25, 2015"
+output: html_document
+---
+
+#Overview
+Herein is documented the creation of a predictive model for the prediction of the quality of a set of movements as captured with biometric sensors (e.g. Jawbone Up, Nike FuelBand, Fitbit). First the data is reviewed and cleaned to utilize the most appropriate variables. The training data is then split into cross validation sets and the training performed on the selected information. The author has chosen to use a random forest model for this assessment.
+
+```{r, echo = FALSE, message = FALSE}
+# load our packages here:
+library(caret) # model wrapper
+library(foreach) # parallelization requirement
+library(doParallel) # parallelization requirement
+```
+
+#Data Selection
+The data is first loaded using R:
+```{r}
+loadData <- function(path = "", file = ""){
+  filePath <- paste(path,file, sep = "/")
+  return(read.csv(filePath, na.strings = c("NA","")))  
+}
+```
+From the return call, the variables with the value "NA" or empty "" are treated as NA values.
+
+In the following function variables that are composed of more than 50% NA columns are removed from the data set.
+```{r}
+checkData <- function(testSet){
+  badCols <- NULL
+  # mostly NA data
+  for(name in names(testSet)){
+    x <- testSet[is.na(testSet[,name]),name]
+    if(length(x) > .5 * dim(trainSet)[1]){
+      badCols <- c(badCols, name)
+    }
+  }
+  
+  return(badCols)
+}
+```
+
+It also appears the columns below are not relevant for training. They consist of a column id labeled "X" on import, the user which the author has opted to remove in order to remove systemic issues that are unique to an individual. Instead the classification of the movement is predicted solely on the user's quantitative measures. The window columns are also removed. They could be relevant if we were focusing on the quality of a complete window of movement, but instead we focus solely on point in time motion.
+
+```{r}
+excCols <- c("X",
+             "user_name",
+             "cvtd_timestamp",
+             "raw_timestamp_part_1",
+             "raw_timestamp_part_2",
+             "new_window",
+             'num_window')
+```
+
+Finally the data is loaded and the poor data is removed from the available data set. The final data set consists of 53 columns from the original 160, one of which is the "classe" column that holds the dependent variable.
+
+```{r}
+main <- function(){
+  trainSet <<- loadData(getwd(),"pml-training.csv")
+  testSet <<- loadData(getwd(),"pml-testing.csv")
+  excludeCols <- c(checkData(trainSet), excCols)
+  badCols <- names(trainSet) %in% excludeCols
+  trainSet <<- trainSet[,!badCols]
+  testSet <<- testSet[,!badCols]
+}
+
+main()
+
+```
+
+In the function below, the training data is partitioned such that 75% of the training data can be used for training. The remaining 25% is used to validate the training assumptions prior to testing against the required test set.
+
+```{r, message = FALSE}
+crossValidate <- function(trainSet){
+  cores <- makeCluster(detectCores() - 1)
+  registerDoParallel(cores)
+  set.seed(8484)
+  
+  # create a cross validation sample...
+  testIndex <- createDataPartition(trainSet$classe, p = 0.75, list=FALSE)
+  training <<- trainSet[testIndex,]
+  testing <<- trainSet[-testIndex,]
+  # print out stats
+  fitControl <- trainControl(method = "none", 
+                             index=createFolds(training$classe))
+  tgrid <- expand.grid(mtry=c(6)) 
+  modFit <<- train(classe ~ ., 
+                   data = training, 
+                   prox = TRUE,
+                   method = "rf", 
+                   trControl = fitControl, 
+                   tuneGrid=tgrid
+                   )
+
+  stopCluster(cores)
+  # return the final model
+  return(modFit)
+}
+
+crossValidate(trainSet)
+```
+
+First, the testing data sample from above (25%) is fed thru the random forest model created above to predict the "classe" variable.
+```{r}
+  pred <<- predict(modFit, testing)
+```
+
+The predicted values are then compared to the actual values for the 25% testing sample.
+```{r}
+  confusionMatrix(testing$classe, pred)  
+```
+From the confusion matrix output the random forest model achieves a 99% accuracy rate. Thus, the out of sample error is extremely low (< 1%). 
+
+The table below shows just the accuracy table from our results.
+```{r}
+  table(pred, testing$classe)
+```
+
+#Summary
+The random forest models are extremely accurate in classification problems. The results from the model fitting presented above continue to support the anecdotal evidence of that accuracy. The model above attens a 99% accuracy rate.
+
+Finally, the last step is to test the model on our test set.
+
+```{r}
+  pred2 <<- predict(modFit, trainSet)
+  pred2
+```
+
+In this case, no a priori information is directly available to test our model accuracy. However, based on the technical upload, the model accuracy is 100% on the test set.
