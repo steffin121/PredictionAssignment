@@ -112,6 +112,7 @@ img {
 }
 
 main()</code></pre>
+<p>In the function below, the training data is partitioned such that 75% of the training data can be used for training. The remaining 25% is used to validate the training assumptions prior to testing against the required test set.</p>
 <pre class="r"><code>crossValidate &lt;- function(trainSet){
   cores &lt;- makeCluster(detectCores() - 1)
   registerDoParallel(cores)
@@ -139,9 +140,6 @@ main()</code></pre>
 }
 
 crossValidate(trainSet)</code></pre>
-<pre><code>## Loading required package: randomForest
-## randomForest 4.6-10
-## Type rfNews() to see new features/changes/bug fixes.</code></pre>
 <pre><code>## Random Forest 
 ## 
 ## 14718 samples
@@ -150,7 +148,9 @@ crossValidate(trainSet)</code></pre>
 ## 
 ## No pre-processing
 ## Resampling: None</code></pre>
+<p>First, the testing data sample from above (25%) is fed thru the random forest model created above to predict the “classe” variable.</p>
 <pre class="r"><code>  pred &lt;&lt;- predict(modFit, testing)</code></pre>
+<p>The predicted values are then compared to the actual values for the 25% testing sample.</p>
 <pre class="r"><code>  confusionMatrix(testing$classe, pred)  </code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
@@ -183,6 +183,8 @@ crossValidate(trainSet)</code></pre>
 ## Detection Rate         0.2845   0.1913   0.1733   0.1627   0.1829
 ## Detection Prevalence   0.2845   0.1935   0.1743   0.1639   0.1837
 ## Balanced Accuracy      0.9979   0.9960   0.9936   0.9968   0.9989</code></pre>
+<p>From the confusion matrix output the random forest model achieves a 99% accuracy rate. Thus, the out of sample error is extremely low (&lt; 1%).</p>
+<p>The table below shows just the accuracy table from our results.</p>
 <pre class="r"><code>  table(pred, testing$classe)</code></pre>
 <pre><code>##     
 ## pred    A    B    C    D    E
@@ -194,6 +196,13 @@ crossValidate(trainSet)</code></pre>
 </div>
 <div id="summary" class="section level1">
 <h1>Summary</h1>
+<p>The random forest models are extremely accurate in classification problems. The results from the model fitting presented above continue to support the anecdotal evidence of that accuracy. The model above attens a 99% accuracy rate.</p>
+<p>Finally, the last step is to test the model on our test set.</p>
+<pre class="r"><code>  pred2 &lt;&lt;- predict(modFit, testSet)
+  pred2</code></pre>
+<pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
+## Levels: A B C D E</code></pre>
+<p>In this case, no a priori information is directly available to test our model accuracy. However, based on the technical upload, the model accuracy is 100% on the test set.</p>
 </div>
 
 
