@@ -123,7 +123,7 @@ The random forest models are extremely accurate in classification problems. The 
 Finally, the last step is to test the model on our test set.
 
 ```{r}
-  pred2 <<- predict(modFit, trainSet)
+  pred2 <<- predict(modFit, testSet)
   pred2
 ```
 
